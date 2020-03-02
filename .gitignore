@@ -5,3 +5,4 @@ App/Home/Conf/config.php
 App/Home/Model/DenyModel.class.php
 App/Admin/Controller/BaseController.class.php
 App/Admin/Controller/ReportController.class.php
+Public/Data/
