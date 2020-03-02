@@ -24,9 +24,10 @@ class OrderController extends BaseController {
             $data = $this->formData();
             $data['ip'] = $ip;
             $http_referer = I('server.HTTP_REFERER', '', 'validate_url,htmlspecialchars');
-            if($this->isFloor($ip, $data)){//是否灌水
-                $this->alert('您已经被拉入黑名单，禁止再次下单!', $http_referer);
-                $this->saveFailOrder($data);
+            $return = $this->isFloor($ip, $data);
+            if($return){//下单限制
+                $msg = $return === true ? '您已经被拉入黑名单，禁止再次下单!' : '您的订单我们已收到，无需重复提交表单!';
+                $this->alert($msg, $http_referer);
                 exit;
             }
             $advert = M('advert')->where(['aid'=>$data['aid']])->field(['mid','toid','telno','url','tips','mode','tnid','isuno'])->find();
@@ -44,7 +45,7 @@ class OrderController extends BaseController {
             if($advert['mode'] == '1'){
                 //$http_referer = str_replace('skip=1', 'order=1x', $http_referer);
                 $xarr = explode('?', $http_referer);
-                isset($xarr[0]) ? $http_referer = $xarr[0].'?order=1x' : null;
+                isset($xarr[0]) ? $http_referer = $xarr[0].'?order=xxx' : null;
             }
             $pinfoArr = $this->productInfo($data['pids']);
             $data['pinfo'] = $pinfoArr['pinfo'];
@@ -168,8 +169,12 @@ class OrderController extends BaseController {
         }
         $tmp = S('order_'.$ip);
         if($tmp === false){
-            S('order_'.$ip, ['count'=>1, 'time'=>time()], 86400);
+            S('order_'.$ip, ['count'=>1, 'time'=>time(), 'var'=>md5($data['aid'].$data['cname'].$data['telno'])], 86400);
             return false;
+        }
+        $var = md5($data['aid'].$data['cname'].$data['telno']);
+        if($var == $tmp['var'] && (time() - $tmp['time'] < $this->config['base']['order_limit'])){//客户下单的时间限制
+            return 1;
         }
         if(time() - $tmp['time'] <= 60){
             $tmp['count'] = $tmp['count'] + 1;
