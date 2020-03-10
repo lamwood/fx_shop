@@ -97,20 +97,23 @@ class BaseController extends Controller {
     }
     //获取客户端IP地址
     protected function clientIP(){
-        $http_x_forwarded_for = I('server.HTTP_X_FORWARDED_FOR', '');
-        if($http_x_forwarded_for != ''){
-            $tarr = explode(',', $http_x_forwarded_for);
-            $http_x_forwarded_for = isset($tarr[0]) ? $tarr[0] : '';
-        }
-        $http_ali_cdn_real_ip = I('server.HTTP_ALI_CDN_REAL_IP', '', 'validate_ip');
+        $http_ali_cdn_real_ip = I('server.HTTP_ALI_CDN_REAL_IP', '', 'validate_ip'); //阿里云CDN
+        $http_x_forwarded_for = I('server.HTTP_X_FORWARDED_FOR', ''); //代理
+        $http_remote_ip = I('server.HTTP_REMOTEIP', ''); //阿里云负载均衡7层
         if($http_ali_cdn_real_ip){
-            $ip = $http_ali_cdn_real_ip;
-        }elseif(!$http_ali_cdn_real_ip && $http_x_forwarded_for){
-            $ip = $http_x_forwarded_for;
-        }else{
-            $ip = get_client_ip();
+            return $http_ali_cdn_real_ip;
         }
-        return $ip;
+        if($http_remote_ip){
+            return $http_remote_ip;
+        }
+        if($http_x_forwarded_for){
+            $ips = explode(',', $http_x_forwarded_for);
+            $ip = $ips[0] ?? '';
+            if($ip && !preg_match('^(10|172.16|192.168|127.0).', $ip)){
+                return $ip;
+            }
+        }
+        return get_client_ip();
     }
     //获取IP地址地理位置信息
     protected function ipLocation($ip){
