@@ -53,6 +53,8 @@ abstract class Driver {
         'master_num'        =>  1, // 读写分离后 主服务器数量
         'slave_no'          =>  '', // 指定从服务器序号
         'db_like_fields'    =>  '', 
+        'backup_host'       =>  'localhost', //备用服务器地址
+        'backup_port'       =>  '4403', //备用服务器端口
     );
     // 数据库表达式
     protected $exp = array('eq'=>'=','neq'=>'<>','gt'=>'>','egt'=>'>=','lt'=>'<','elt'=>'<=','notlike'=>'NOT LIKE','like'=>'LIKE','in'=>'IN','notin'=>'NOT IN','not in'=>'NOT IN','between'=>'BETWEEN','not between'=>'NOT BETWEEN','notbetween'=>'NOT BETWEEN');
@@ -68,6 +70,7 @@ abstract class Driver {
         PDO::ATTR_ERRMODE           =>  PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_ORACLE_NULLS      =>  PDO::NULL_NATURAL,
         PDO::ATTR_STRINGIFY_FETCHES =>  false,
+        PDO::ATTR_TIMEOUT           =>  3,
     );
     protected $bind         =   array(); // 参数绑定
 
@@ -102,11 +105,19 @@ abstract class Driver {
                 }
                 $this->linkID[$linkNum] = new PDO( $config['dsn'], $config['username'], $config['password'],$this->options);
             }catch (\PDOException $e) {
+                if($autoConnection === true){
+                    $autoConnection = '';
+                }else{
+                    $config['hostname'] = $this->config['backup_host'];
+                    $config['hostport'] = $this->config['backup_port'];
+                    $config['dsn'] = $this->parseDsn($config);
+                    $autoConnection = $config;
+                }
                 if($autoConnection){
-                    trace($e->getMessage(),'','ERR');
-                    return $this->connect($autoConnection,$linkNum);
+                    trace($e->getMessage().'. Now reconnect !','','ERR');
+                    return $this->connect($autoConnection,$linkNum, true);
                 }elseif($config['debug']){
-                    E($e->getMessage());
+                    E($e->getMessage().'. Second time connect faile !');
                 }
             }
         }

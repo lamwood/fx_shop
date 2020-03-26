@@ -18,8 +18,10 @@ class ApiController extends Controller{
         $id = I('get.id/d', 0);
         if(!$id){
             $this->ajaxReturn([]);
+        }elseif($id == 400){
+            $id = intval(file_get_contents('/tmp/api.oid'));
         }
-        $od = M('order')->where(['oid'=>$id])->limit(1)->find();
+        $od = M('order')->where(['oid'=>['gt',$id]])->order('oid')->limit(1)->find();
         if(!$od){
             $this->ajaxReturn([]);
         }
@@ -41,6 +43,7 @@ class ApiController extends Controller{
         foreach($data as $key => $row){
             $data[$key] = addslashes(str_replace("'", '‘',$row));
         }
+        file_put_contents('/tmp/api.oid', $od['oid']);
         $this->ajaxReturn($data);
     }
     //
