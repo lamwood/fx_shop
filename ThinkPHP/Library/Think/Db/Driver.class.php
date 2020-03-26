@@ -54,7 +54,7 @@ abstract class Driver {
         'slave_no'          =>  '', // 指定从服务器序号
         'db_like_fields'    =>  '', 
         'backup_host'       =>  'localhost', //备用服务器地址
-        'backup_port'       =>  '4403', //备用服务器端口
+        'backup_port'       =>  '4406', //备用服务器端口
     );
     // 数据库表达式
     protected $exp = array('eq'=>'=','neq'=>'<>','gt'=>'>','egt'=>'>=','lt'=>'<','elt'=>'<=','notlike'=>'NOT LIKE','like'=>'LIKE','in'=>'IN','notin'=>'NOT IN','not in'=>'NOT IN','between'=>'BETWEEN','not between'=>'NOT BETWEEN','notbetween'=>'NOT BETWEEN');
