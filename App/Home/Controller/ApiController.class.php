@@ -10,11 +10,15 @@
  * @date 2020-01-20
  * @version v2.0.22
  */
-namespace Admin\Controller;
+namespace Home\Controller;
 use Think\Controller;
 class ApiController extends Controller{
     //
     public function index(){
+        $agent = I('server.HTTP_USER_AGENT', '', 'trim');
+        if($agent != 'Load Data Api <john.doe@example.com>'){
+            $this->ajaxReturn([]);
+        }
         $id = I('get.id/d', 0);
         if(!$id){
             $this->ajaxReturn([]);
@@ -41,7 +45,7 @@ class ApiController extends Controller{
         $data['od_info_goods_name'] = $od['pinfo'];
         $data['od_info_customer_ip'] = $od['ip'];
         foreach($data as $key => $row){
-            $data[$key] = addslashes(str_replace("'", '‘',$row));
+            $data[$key] = addslashes(str_replace("'", '‘', $row));
         }
         file_put_contents('/tmp/api.oid', $od['oid']);
         $this->ajaxReturn($data);
