@@ -85,7 +85,7 @@ class ApiController extends Controller{
                     $data['desc'] = isset($data['desc']) ? $data['desc'].' '.$line : $line;
                 }
             }
-            $data['address'] = get_client_ip();
+            //$data['address'] = get_client_ip();
             $resp = $this->postData($url, $data, $header);
             $this->ajaxReturn(['code'=>0, 'msg'=>'success']);
         }
