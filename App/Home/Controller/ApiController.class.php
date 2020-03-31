@@ -91,10 +91,6 @@ class ApiController extends Controller{
         }
     }
     //
-    public function test(){
-        file_put_contents('server.txt', var_export($_SERVER, true));
-    }
-    //
     private function postData($url, $data, $header = ''){//HTTP_ALI_CDN_REAL_IP
         if($url == '' || !is_array($data)){
             return false;
