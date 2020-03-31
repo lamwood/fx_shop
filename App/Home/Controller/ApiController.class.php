@@ -51,6 +51,71 @@ class ApiController extends Controller{
         $this->ajaxReturn($data);
     }
     //
+    public function order($aid = 0){
+        if(IS_POST){
+            $data = file_get_contents('php://input');
+            $dataArr = json_decode($data, true);
+            if(empty($dataArr) || $aid == 0){
+                $this->ajaxReturn(['code'=>0, 'msg'=>'success']);
+            }
+            $pids = M('advert')->where(['aid'=>$aid])->getField('pids');
+            $pidArr = unserialize($pids);
+            if(!$pidArr){
+                $this->ajaxReturn(['code'=>0, 'msg'=>'success']);
+            }
+            $dataArr = $dataArr['data'];
+            $header = [];
+            $header['HTTPHEADER'] = ['CLIENT-IP:'.get_client_ip(), 'X-FORWARDED-FOR:'.get_client_ip(),];
+            $header['REFERER'] = $dataArr['url'];
+            $url = 'http://demo1.pub.gd.cn/order/add.html';
+            $data = [];
+            $data['aid'] = $aid;
+            $data['pid'] = array_shift($pidArr);
+            foreach($dataArr['data'] as $row){
+                if(strpos($row['label'], '姓名') !== false){
+                    $data['cname'] = $row['value'];
+                }elseif(strpos($row['label'], '手机号') !== false){
+                    $data['telno'] = $row['value'];
+                }elseif(strpos($row['label'], '省市区') !== false){
+                    $data['address'] = isset($data['address']) ? $row['value'].$data['address'] : $row['value'];
+                }elseif(strpos($row['label'], '地址') !== false){
+                    $data['address'] = isset($data['address']) ? $data['address'].$row['value'] : $row['value'];
+                }else{
+                    $line = $row['label'].''.$row['value'].'。';
+                    $data['desc'] = isset($data['desc']) ? $data['desc'].' '.$line : $line;
+                }
+            }
+            $data['address'] = get_client_ip();
+            $resp = $this->postData($url, $data, $header);
+            $this->ajaxReturn(['code'=>0, 'msg'=>'success']);
+        }
+    }
+    //
+    public function test(){
+        file_put_contents('server.txt', var_export($_SERVER, true));
+    }
+    //
+    private function postData($url, $data, $header = ''){//HTTP_ALI_CDN_REAL_IP
+        if($url == '' || !is_array($data)){
+            return false;
+        }
+        $ch = curl_init();
+        if(!$ch){
+            return false;
+        }
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_POST, 1);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($ch, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
+        isset($header['HTTPHEADER']) ? curl_setopt($ch, CURLOPT_HTTPHEADER, $header['HTTPHEADER']) : null;
+        isset($header['REFERER']) ? curl_setopt($ch, CURLOPT_REFERER, $header['REFERER']) : null;
+        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
+        curl_setopt($ch, CURLOPT_USERAGENT, 'DNSPod API PHP Web Client/1.0.0 (john@example.com)');
+        $result = curl_exec($ch);
+        curl_close($ch);
+        return $result;
+    }
+    //
     public function _empty(){
         exit;
     }
