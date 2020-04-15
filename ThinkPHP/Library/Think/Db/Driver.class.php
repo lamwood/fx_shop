@@ -53,8 +53,7 @@ abstract class Driver {
         'master_num'        =>  1, // 读写分离后 主服务器数量
         'slave_no'          =>  '', // 指定从服务器序号
         'db_like_fields'    =>  '', 
-        'backup_host'       =>  'localhost', //备用服务器地址
-        'backup_port'       =>  '4406', //备用服务器端口
+        'reconnect'         =>  true, //是否断线重连
     );
     // 数据库表达式
     protected $exp = array('eq'=>'=','neq'=>'<>','gt'=>'>','egt'=>'>=','lt'=>'<','elt'=>'<=','notlike'=>'NOT LIKE','like'=>'LIKE','in'=>'IN','notin'=>'NOT IN','not in'=>'NOT IN','between'=>'BETWEEN','not between'=>'NOT BETWEEN','notbetween'=>'NOT BETWEEN');
@@ -70,7 +69,7 @@ abstract class Driver {
         PDO::ATTR_ERRMODE           =>  PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_ORACLE_NULLS      =>  PDO::NULL_NATURAL,
         PDO::ATTR_STRINGIFY_FETCHES =>  false,
-        PDO::ATTR_TIMEOUT           =>  3,
+        PDO::ATTR_TIMEOUT           =>  3, //连接超时（秒）
     );
     protected $bind         =   array(); // 参数绑定
 
@@ -92,7 +91,7 @@ abstract class Driver {
      * 连接数据库方法
      * @access public
      */
-    public function connect($config='',$linkNum=0,$autoConnection=false) {
+    public function connect($config='', $linkNum=0, $autoConnection=false){
         if ( !isset($this->linkID[$linkNum]) ) {
             if(empty($config))  $config =   $this->config;
             try{
@@ -104,20 +103,15 @@ abstract class Driver {
                     $this->options[PDO::ATTR_EMULATE_PREPARES]  =   false;
                 }
                 $this->linkID[$linkNum] = new PDO( $config['dsn'], $config['username'], $config['password'],$this->options);
-            }catch (\PDOException $e) {
-                if($autoConnection === true){
-                    $autoConnection = '';
-                }else{
-                    $config['hostname'] = $this->config['backup_host'];
-                    $config['hostport'] = $this->config['backup_port'];
-                    $config['dsn'] = $this->parseDsn($config);
-                    $autoConnection = $config;
-                }
+            }catch(\PDOException $e){
                 if($autoConnection){
-                    trace($e->getMessage().'. Now reconnect !','','ERR');
-                    return $this->connect($autoConnection,$linkNum, true);
+                    trace($e->getMessage().'. Now connect to another database !', '', 'ERR');
+                    return $this->connect($autoConnection,$linkNum);
+                }elseif($autoConnection === false && $this->config['reconnect']){
+                    trace($e->getMessage().'. Now reconnect !', '', 'ERR');
+                    return $this->connect($config, $linkNum, null);
                 }elseif($config['debug']){
-                    E($e->getMessage().'. Second time connect faile !');
+                    E($e->getMessage().'. Second time connect fail !');
                 }
             }
         }
@@ -166,7 +160,7 @@ abstract class Driver {
         $this->debug(true);
         $this->PDOStatement = $this->_linkID->prepare($str);
         if(false === $this->PDOStatement){
-            $this->error();
+            $this->error('query');
             return false;
         }
         foreach ($this->bind as $key => $val) {
@@ -181,7 +175,7 @@ abstract class Driver {
         // 调试结束
         $this->debug(false);
         if ( false === $result ) {
-            $this->error();
+            $this->error('query');
             return false;
         } else {
             return $this->getResult();
@@ -214,7 +208,7 @@ abstract class Driver {
         $this->debug(true);
         $this->PDOStatement =   $this->_linkID->prepare($str);
         if(false === $this->PDOStatement) {
-            $this->error();
+            $this->error('execute');
             return false;
         }
         foreach ($this->bind as $key => $val) {
@@ -228,7 +222,7 @@ abstract class Driver {
         $result =   $this->PDOStatement->execute();
         $this->debug(false);
         if ( false === $result) {
-            $this->error();
+            $this->error('execute');
             return false;
         } else {
             $this->numRows = $this->PDOStatement->rowCount();
@@ -334,13 +328,19 @@ abstract class Driver {
      * @access public
      * @return string
      */
-    public function error() {
+    public function error($method = '') {
         if($this->PDOStatement) {
             $error = $this->PDOStatement->errorInfo();
             $this->error = $error[1].':'.$error[2];
         }else{
             $this->error = '';
         }
+        //begin add
+        if($this->isBreak($error[2]) && $this->config['reconnect'] && $method){
+            trace($error[2].'. ['.$method.'] Now redo !','','ERR');
+            return $this->close()->$method($this->queryStr);
+        }
+        //end
         if('' != $this->queryStr){
             $this->error .= "\n [ SQL语句 ] : ".$this->queryStr;
         }
@@ -1133,8 +1133,36 @@ abstract class Driver {
         );
         return $this->connect($db_config,$r,$r == $m ? false : $db_master);
     }
+    
+    /**
+     * 是否断线
+     * @param type $error
+     * @return boolean
+     */
+    protected function isBreak($error){
+        // 服务器断线标识字符
+        $breakMatchStr = [
+            'server has gone away',
+            'no connection to the server',
+            'Lost connection',
+            'is dead or not enabled',
+            'Error while sending',
+            'decryption failed or bad record mac',
+            'server closed the connection unexpectedly',
+            'SSL connection has been closed unexpectedly',
+            'Error writing data to the connection',
+            'Resource deadlock avoided',
+            'failed with errno',
+        ];
+        foreach($breakMatchStr as $msg){
+            if(stripos($error, $msg) !== false){
+                return true;
+            }
+        }
+        return false;
+    }
 
-   /**
+    /**
      * 析构方法
      * @access public
      */
