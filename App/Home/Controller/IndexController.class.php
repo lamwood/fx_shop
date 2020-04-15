@@ -83,9 +83,6 @@ class IndexController extends BaseController {
     }
     //
     public function test(){
-        $tmp = M('tpl_domain')->select();echo serialize($tmp);exit;
-        $http_x_forwarded_for = I('server.HTTP_X_FORWARDED_FOR', '', 'validate_ip');
-        $http_ali_cdn_real_ip = I('server.HTTP_ALI_CDN_REAL_IP', '', 'validate_ip');
-        echo $http_ali_cdn_real_ip.'-->'.$http_x_forwarded_for;
+        //M()->query("select sleep(10)");
     }
 }
