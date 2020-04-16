@@ -160,7 +160,7 @@ abstract class Driver {
         $this->debug(true);
         $this->PDOStatement = $this->_linkID->prepare($str);
         if(false === $this->PDOStatement){
-            $this->error('query');
+            $this->error();
             return false;
         }
         foreach ($this->bind as $key => $val) {
@@ -171,14 +171,19 @@ abstract class Driver {
             }
         }
         $this->bind =   array();
-        $result =   $this->PDOStatement->execute();
-        // 调试结束
-        $this->debug(false);
-        if ( false === $result ) {
-            $this->error('query');
+        try{
+            $result =   $this->PDOStatement->execute();
+            // 调试结束
+            $this->debug(false);
+            if ( false === $result ) {
+                $this->error();
+                return false;
+            } else {
+                return $this->getResult();
+            }
+        }catch(\PDOException $e){
+            $this->error();
             return false;
-        } else {
-            return $this->getResult();
         }
     }
 
@@ -208,7 +213,7 @@ abstract class Driver {
         $this->debug(true);
         $this->PDOStatement =   $this->_linkID->prepare($str);
         if(false === $this->PDOStatement) {
-            $this->error('execute');
+            $this->error();
             return false;
         }
         foreach ($this->bind as $key => $val) {
@@ -219,17 +224,23 @@ abstract class Driver {
             }
         }
         $this->bind =   array();
-        $result =   $this->PDOStatement->execute();
-        $this->debug(false);
-        if ( false === $result) {
-            $this->error('execute');
-            return false;
-        } else {
-            $this->numRows = $this->PDOStatement->rowCount();
-            if(preg_match("/^\s*(INSERT\s+INTO|REPLACE\s+INTO)\s+/i", $str)) {
-                $this->lastInsID = $this->_linkID->lastInsertId();
+        try{
+            $result =   $this->PDOStatement->execute();
+            // 调试结束
+            $this->debug(false);
+            if ( false === $result) {
+                $this->error();
+                return false;
+            } else {
+                $this->numRows = $this->PDOStatement->rowCount();
+                if(preg_match("/^\s*(INSERT\s+INTO|REPLACE\s+INTO)\s+/i", $str)) {
+                    $this->lastInsID = $this->_linkID->lastInsertId();
+                }
+                return $this->numRows;
             }
-            return $this->numRows;
+        }catch(\PDOException $e){
+            $this->error();
+            return false;
         }
     }
 
@@ -320,7 +331,6 @@ abstract class Driver {
      */
     public function close() {
         $this->_linkID = null;
-        return $this;
     }
 
     /**
@@ -329,19 +339,13 @@ abstract class Driver {
      * @access public
      * @return string
      */
-    public function error($method = '') {
+    public function error() {
         if($this->PDOStatement) {
             $error = $this->PDOStatement->errorInfo();
             $this->error = $error[1].':'.$error[2];
         }else{
             $this->error = '';
         }
-        //begin add
-        if($this->isBreak($error[2]) && $this->config['reconnect'] && $method){
-            trace($error[2].'. ['.$method.'] Now redo !','','ERR');
-            return $this->close()->$method($this->queryStr);
-        }
-        //end
         if('' != $this->queryStr){
             $this->error .= "\n [ SQL语句 ] : ".$this->queryStr;
         }
@@ -1133,34 +1137,6 @@ abstract class Driver {
             'charset'   =>  isset($_config['charset'][$r])?$_config['charset'][$r]:$_config['charset'][0],
         );
         return $this->connect($db_config,$r,$r == $m ? false : $db_master);
-    }
-    
-    /**
-     * 是否断线
-     * @param type $error
-     * @return boolean
-     */
-    protected function isBreak($error){
-        // 服务器断线标识字符
-        $breakMatchStr = [
-            'server has gone away',
-            'no connection to the server',
-            'Lost connection',
-            'is dead or not enabled',
-            'Error while sending',
-            'decryption failed or bad record mac',
-            'server closed the connection unexpectedly',
-            'SSL connection has been closed unexpectedly',
-            'Error writing data to the connection',
-            'Resource deadlock avoided',
-            'failed with errno',
-        ];
-        foreach($breakMatchStr as $msg){
-            if(stripos($error, $msg) !== false){
-                return true;
-            }
-        }
-        return false;
     }
 
     /**
