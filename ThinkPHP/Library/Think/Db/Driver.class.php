@@ -320,6 +320,7 @@ abstract class Driver {
      */
     public function close() {
         $this->_linkID = null;
+        return $this;
     }
 
     /**
