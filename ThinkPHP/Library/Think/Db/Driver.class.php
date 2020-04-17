@@ -112,6 +112,9 @@ abstract class Driver {
                     return $this->connect($config, $linkNum, null);
                 }elseif($config['debug']){
                     E($e->getMessage().'. Second time connect fail !');
+                }else{
+                    trace($e->getMessage().'. Second time connect fail !', 'T', 'ERR');
+                    return null;
                 }
             }
         }
@@ -346,11 +349,11 @@ abstract class Driver {
         }else{
             $this->error = '';
         }
-        if('' != $this->queryStr){
+        if($this->config['debug'] && '' != $this->queryStr){
             $this->error .= "\n [ SQL语句 ] : ".$this->queryStr;
         }
         // 记录错误日志
-        trace($this->error,'','ERR');
+        trace($this->error, 'T', 'ERR');
         if($this->config['debug']) {// 开启数据库调试模式
             E($this->error);
         }else{
