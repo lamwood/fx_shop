@@ -105,10 +105,10 @@ abstract class Driver {
                 $this->linkID[$linkNum] = new PDO( $config['dsn'], $config['username'], $config['password'],$this->options);
             }catch(\PDOException $e){
                 if($autoConnection){
-                    trace($e->getMessage().'. Now connect to another database !', '', 'ERR');
+                    trace($e->getMessage().'. Now connect to another database !', 'T', 'ERR');
                     return $this->connect($autoConnection,$linkNum);
                 }elseif($autoConnection === false && $this->config['reconnect']){
-                    trace($e->getMessage().'. Now reconnect !', '', 'ERR');
+                    trace($e->getMessage().'. Now reconnect !', 'T', 'ERR');
                     return $this->connect($config, $linkNum, null);
                 }elseif($config['debug']){
                     E($e->getMessage().'. Second time connect fail !');
