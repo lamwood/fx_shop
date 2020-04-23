@@ -11,8 +11,12 @@
  * @version v2.0.22
  */
 namespace Home\Controller;
-use Think\Controller;
-class ApiController extends Controller{
+use Home\Model\AdvertModel;
+class ApiController extends BaseController{
+    //
+    public function _initialize() {
+        
+    }
     //
     public function index(){
         $agent = I('server.HTTP_USER_AGENT', '', 'trim');
@@ -50,6 +54,68 @@ class ApiController extends Controller{
         file_put_contents('/tmp/api.oid', $od['oid']);
         $this->ajaxReturn($data);
     }
+    //加载数据
+    public function load(){
+        if(!IS_POST){
+            $this->ajaxReturn([]);
+        }
+        $tname = trim(I('post.tname', ''));
+        $ip = trim(I('post.ip', ''));
+        if($tname == ''){
+            $this->ajaxReturn([]);
+        }
+        $this->config = $this->getInit();
+        $data = [];
+        $data['config'] = $this->config;
+        $data['isip'] = false;
+        if($ip != ''){
+            $ipArr = M('black_ip')->where(['ip'=>$ip])->find();
+            if($ipArr){
+                $data['isip'] = true;
+            }
+        }
+        $Advert = new AdvertModel($this->config);
+        $data['advert'] = $Advert->getAdvert($tname);
+        if($data['advert'] !== false){
+            $model = M('monitor');
+            $row = $model->where(['aid'=>$data['advert']['aid'], 'xdate'=>date('Y-m-d')])->field('moid')->find();
+            if(!$row){
+                $moid = $model->data(['xdate'=>date('Y-m-d'), 'aid'=>$data['advert']['aid']])->add();
+                if($moid){
+                    $data['advert']['moid'] = $moid;
+                    $data['datetime'] = time();
+                }else{
+                    $data['advert']['moid'] = 0;
+                    $data['datetime'] = 0;
+                }
+            }else{
+                $data['advert']['moid'] = $row['moid'];
+                $data['datetime'] = time();
+            }
+        }
+        $data['domain'] = $data['advert'] === false ? null : $Advert->getDomain($data['advert']['did']);
+        $data['blacktpl'] = $data['advert'] === false ? null : $Advert->getBlackTpl($data['advert']['tbid']);
+        $data['normaltpl'] = $data['advert'] === false ? null : $Advert->getNormalTpl($data['advert']['tnid']);
+        $data['wxwho'] = $data['advert'] === false ? null : $Advert->wxPic($data['advert']['aid']);
+        $this->ajaxReturn($data);
+    }
+    //保存日志
+    public function agentlog(){
+        if(IS_POST){
+            $data = I('post.');
+            if(!isset($data['passwd']) || $data['passwd'] != md5('mt-esta')){
+                $this->ajaxReturn(['code' => 1, 'msg' => 'passwd incorrect']);
+            }
+            $moid = $data['moid'];
+            unset($data['moid']);
+            $result = M('agent_log')->data($data)->add();
+            if($result){
+                M('monitor')->where(['moid'=>$moid])->setInc('top');
+                $this->ajaxReturn(['code' => 0, 'msg']);
+            }
+            $this->ajaxReturn(['code' => 1, 'msg' => M('agent_log')->getDbError()]);
+        }
+    }
     //
     public function order($aid = 0){
         if(IS_POST){
@@ -67,7 +133,7 @@ class ApiController extends Controller{
             $header = [];
             $header['HTTPHEADER'] = ['CLIENT-IP:'.get_client_ip(), 'X-FORWARDED-FOR:'.get_client_ip(),];
             $header['REFERER'] = $dataArr['url'];
-            $url = 'http://demo1.pub.gd.cn/order/add.html';
+            $url = 'http://demo1.pub.cn/order/add.html';
             $data = [];
             $data['aid'] = $aid;
             $data['pid'] = array_shift($pidArr);
