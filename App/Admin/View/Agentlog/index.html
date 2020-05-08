@@ -45,7 +45,7 @@
             <volist name="thead" id="val">
                 <td>{$row.$key}</td>
             </volist>
-                <td><input type="checkbox" name="ids" data-toggle="icheck" value="{$row.lid}"></td>
+                <td><input type="checkbox" name="ids" data-toggle="icheck" value="{$row.alid}"></td>
                 <td>
                     <if condition="authcheck('Admin/Agentlog/del')">
                         <a href="{:U('Agentlog/del',array('key'=>'alid','val'=>$row['alid']))}" class="btn btn-red" data-toggle="doajax" data-confirm-msg="确定要删除该行信息吗？">删除</a>
